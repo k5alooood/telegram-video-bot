@@ -1,0 +1,11 @@
+
+{
+  "scripts": {
+    "start": "python bot.py"
+  },
+  "build": {
+    "nixpacks": {
+      "packages": ["ffmpeg"]
+    }
+  }
+}
