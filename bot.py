@@ -13,15 +13,13 @@ user_links = {}
 
 def upload_to_gofile(file_path):
     try:
-    pass  # تم إدراج هذا السطر لتجنب خطأ Indentation
-    except Exception as e:
-        print(f'Error: {e}')
         server = requests.get("https://api.gofile.io/getServer").json()['data']['server']
         with open(file_path, 'rb') as f:
             files = {'file': f}
             res = requests.post(f"https://{server}.gofile.io/uploadFile", files=files).json()
         return res['data']['downloadPage']
-    except:
+    except Exception as e:
+        print(f'Error: {e}')
         return None
 
 @bot.message_handler(commands=['start'])
@@ -56,10 +54,6 @@ def handle_callback(call):
     url = user_links.get(chat_id)
 
     try:
-    pass
-except Exception as e:
-    print(f'Error: {e}')
-        print(f'Error: {e}')
         if call.data == "tiktok":
             download_video(chat_id, url, "best")
         elif call.data == "telegram":
@@ -75,13 +69,12 @@ except Exception as e:
             height = call.data.split("_")[1]
             download_video(chat_id, url, height)
     except Exception as e:
+        print(f'Error: {e}')
         notify_admin(traceback.format_exc())
 
 def show_quality_options(chat_id, url):
     markup = telebot.types.InlineKeyboardMarkup()
     try:
-    except Exception as e:
-        print(f'Error: {e}')
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             formats = info.get('formats', [])
@@ -93,6 +86,7 @@ def show_quality_options(chat_id, url):
                     markup.add(telebot.types.InlineKeyboardButton(f"{h}p", callback_data=f"res_{h}"))
         bot.send_message(chat_id, "اختر الجودة:", reply_markup=markup)
     except Exception as e:
+        print(f'Error: {e}')
         notify_admin(traceback.format_exc())
         bot.send_message(chat_id, "تعذر استخراج الجودات.")
 
@@ -128,11 +122,9 @@ def download_audio(chat_id, url):
 
 def send_file(chat_id, path, audio=False):
     try:
-    except Exception as e:
-        print(f'Error: {e}')
         if os.path.getsize(path) > 50 * 1024 * 1024:
             link = upload_to_gofile(path)
-bot.send_message(chat_id, f"طلبك كبير، لم نتمكن من إرساله عبر تيليجرام.")
+            bot.send_message(chat_id, f"طلبك كبير، لم نتمكن من إرساله عبر تيليجرام.")
             bot.send_message(chat_id, f"رابط التحميل: {link}")
         else:
             with open(path, "rb") as f:
@@ -140,6 +132,8 @@ bot.send_message(chat_id, f"طلبك كبير، لم نتمكن من إرسال�
                     bot.send_audio(chat_id, f)
                 else:
                     bot.send_video(chat_id, f)
+    except Exception as e:
+        print(f'Error: {e}')
     finally:
         os.remove(path)
 
@@ -156,6 +150,6 @@ print("✅ البوت يعمل ومتصِل...")
 while True:
     try:
         bot.polling()
-    except:
+    except Exception:
         notify_admin(traceback.format_exc())
         time.sleep(5)
