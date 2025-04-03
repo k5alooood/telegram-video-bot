@@ -5,19 +5,32 @@ import requests
 import time
 import traceback
 
+try:
+    import ssl
+except ImportError:
+    ssl = None  # Handle missing SSL module gracefully
+
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 ADMIN_CHAT_ID = os.environ.get("ADMIN_CHAT_ID")
+
+if not BOT_TOKEN:
+    raise ValueError("Error: BOT_TOKEN is not set. Please configure it as an environment variable.")
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_links = {}
 
 def upload_to_gofile(file_path):
     try:
-        server = requests.get("https://api.gofile.io/getServer").json()['data']['server']
+        server_res = requests.get("https://api.gofile.io/getServer").json()
+        server = server_res.get('data', {}).get('server')
+        if not server:
+            raise ValueError("Failed to fetch server from Gofile API")
+        
         with open(file_path, 'rb') as f:
             files = {'file': f}
             res = requests.post(f"https://{server}.gofile.io/uploadFile", files=files).json()
-        return res['data']['downloadPage']
+        
+        return res.get('data', {}).get('downloadPage')
     except Exception as e:
         print(f'Error: {e}')
         return None
@@ -52,6 +65,10 @@ def handle_link(message):
 def handle_callback(call):
     chat_id = call.message.chat.id
     url = user_links.get(chat_id)
+    
+    if not url:
+        bot.send_message(chat_id, "❌ خطأ: لم يتم العثور على الرابط.")
+        return
 
     try:
         if call.data == "tiktok":
@@ -69,7 +86,6 @@ def handle_callback(call):
             height = call.data.split("_")[1]
             download_video(chat_id, url, height)
     except Exception as e:
-        print(f'Error: {e}')
         notify_admin(traceback.format_exc())
 
 def show_quality_options(chat_id, url):
@@ -78,15 +94,15 @@ def show_quality_options(chat_id, url):
         with yt_dlp.YoutubeDL({'quiet': True}) as ydl:
             info = ydl.extract_info(url, download=False)
             formats = info.get('formats', [])
-            res_list = []
+            res_list = set()
+            
             for f in formats:
                 h = f.get("height")
                 if h and h not in res_list:
-                    res_list.append(h)
+                    res_list.add(h)
                     markup.add(telebot.types.InlineKeyboardButton(f"{h}p", callback_data=f"res_{h}"))
         bot.send_message(chat_id, "اختر الجودة:", reply_markup=markup)
-    except Exception as e:
-        print(f'Error: {e}')
+    except Exception:
         notify_admin(traceback.format_exc())
         bot.send_message(chat_id, "تعذر استخراج الجودات.")
 
@@ -124,7 +140,7 @@ def send_file(chat_id, path, audio=False):
     try:
         if os.path.getsize(path) > 50 * 1024 * 1024:
             link = upload_to_gofile(path)
-            bot.send_message(chat_id, f"طلبك كبير، لم نتمكن من إرساله عبر تيليجرام.")
+            bot.send_message(chat_id, "طلبك كبير، لم نتمكن من إرساله عبر تيليجرام.")
             bot.send_message(chat_id, f"رابط التحميل: {link}")
         else:
             with open(path, "rb") as f:
@@ -132,8 +148,8 @@ def send_file(chat_id, path, audio=False):
                     bot.send_audio(chat_id, f)
                 else:
                     bot.send_video(chat_id, f)
-    except Exception as e:
-        print(f'Error: {e}')
+    except Exception:
+        notify_admin(traceback.format_exc())
     finally:
         os.remove(path)
 
